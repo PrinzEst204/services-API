@@ -1,5 +1,8 @@
 import express, { Request, Response, NextFunction, ErrorRequestHandler, } from "express"
 import dotenv from 'dotenv'
+import mongoose from 'mongoose';
+import dns from "node:dns"
+dns.setServers(["8.8.8.8", "1.1.1.1"])
 import { request } from "node:http";
 
 
@@ -9,6 +12,20 @@ dotenv.config()
 //create express application
 
 const app = express()
+
+const MONGO_URI: string = process.env.MONGO_URI || '';
+
+// Connect to MongoDB
+const connectDB = async () => {
+    try {
+        await mongoose.connect(MONGO_URI);
+        console.log('Successfully connected to MongoDB!');
+    } catch (error) {
+        console.error('Failed to connect to MongoDB:', error);
+        process.exit(1); // Kill the server — no point running without a database
+    }
+};
+
 
 app.use(express.json()); // lets express read json request body from client
 
@@ -58,7 +75,8 @@ app.get("/services/:id", (req:Request,res:Response) => {
     const service = services.find( (s) => s.id === id );
 
     if (!service) {
-        return res.status(404).json({ error: "Service not found"});
+        res.status(404).json({ error: "Service not found"});
+          return;
     }
     res.json(service);
 });
@@ -80,7 +98,7 @@ app.post("/services", (req:Request, res:Response) => {
     };
     services.push(service)
 
-    res.status(200).json(service)
+    res.status(201).json(service)
 });
 
 //Update services
@@ -145,8 +163,9 @@ const errorHandler: ErrorRequestHandler = (
 
 
 
-
-const port: number = Number(process.env.port) || 3000;
+connectDB().then(() => {
+const port: number = Number(process.env.PORT) || 3000;
 app.listen(port, () => {
     console.log(`Server is running on http://localhost:${port}`);
+})
 });
